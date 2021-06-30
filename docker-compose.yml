@@ -1,0 +1,53 @@
+version: '3'
+services:
+  webserver:
+    image: nginx:1.21.0-alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./api:/var/www/api
+      - ./docker/nginx/conf.d/api.conf:/etc/nginx/conf.d/api.conf
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: hrapp/api
+    restart: on-failure
+    tty: true
+    command: bash -c 'cd /var/www/api && php artisan migrate && php-fpm'
+    depends_on:
+      - mysql
+    links:
+      - mysql
+    volumes:
+      - ./api:/var/www/api
+  mysql:
+    image: mysql:5
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - dbdata:/var/lib/mysql
+      - ./docker/mysql/setup.sql:/docker-entrypoint-initdb.d/setup.sql
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    image: hrapp/client
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+    volumes:
+      - ./client:/var/www/client
+
+#Volumes
+volumes:
+  dbdata:
+    driver: local
